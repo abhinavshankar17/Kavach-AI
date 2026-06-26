@@ -62,6 +62,7 @@ export default function Home() {
       icon: Eye,
       color: "text-emerald-400",
       variant: "violet" as const,
+      path: "/vision",
     },
     {
       title: "Network Kavach",
@@ -70,6 +71,7 @@ export default function Home() {
       icon: Share2,
       color: "text-violet-400",
       variant: "zinc" as const,
+      path: "/network",
     },
     {
       title: "Citizen Kavach",
@@ -78,6 +80,7 @@ export default function Home() {
       icon: Shield,
       color: "text-fuchsia-400",
       variant: "violet" as const,
+      path: "/citizen",
     },
     {
       title: "Geo Kavach",
@@ -86,6 +89,7 @@ export default function Home() {
       icon: MapPin,
       color: "text-indigo-400",
       variant: "zinc" as const,
+      path: "/geo",
     },
   ];
 
@@ -268,9 +272,14 @@ export default function Home() {
                   </div>
                   <span className="text-xs text-zinc-500 font-sans font-bold">{agent.tag}</span>
                 </div>
-                <p className="text-sm text-zinc-400 leading-relaxed font-sans mt-3">
+                <p className="text-sm text-zinc-400 leading-relaxed font-sans mt-3 flex-1">
                   {agent.desc}
                 </p>
+                {agent.path && (
+                  <Link href={agent.path} className="text-xs font-bold text-violet-450 hover:text-violet-300 flex items-center gap-1.5 hover:underline mt-auto pt-2 cursor-pointer">
+                    Launch Dedicated Agent Portal <ArrowUpRight className="w-3.5 h-3.5" />
+                  </Link>
+                )}
               </Card>
             );
           })}

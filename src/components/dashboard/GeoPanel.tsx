@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Globe, Clock, RefreshCw, Server } from "lucide-react";
+import { MapPin, Globe, Clock, RefreshCw, Server, Sparkles } from "lucide-react";
 import { Card } from "../ui/Card";
 
 interface Hotspot {
@@ -136,7 +137,9 @@ export default function GeoPanel() {
               <Globe className="w-5.5 h-5.5 text-violet-400 animate-pulse" />
               <span className="font-bold text-base text-zinc-100">Geospatial Intelligence</span>
             </div>
-            <span className="w-2.5 h-2.5 rounded-full bg-violet-500" />
+            <Link href="/geo" className="text-xs text-violet-400 hover:text-violet-300 font-bold flex items-center gap-1 hover:underline cursor-pointer">
+              <Sparkles className="w-3.5 h-3.5" /> Launch Radar
+            </Link>
           </div>
           <p className="text-sm text-zinc-400 leading-relaxed font-sans">
             Monitor active cybercrime nodes, coordinate threat vectors geographically, and evaluate collaborative alert matrices.

@@ -29,24 +29,26 @@ import CitizenPanel from "@/components/dashboard/CitizenPanel";
 import GeoPanel from "@/components/dashboard/GeoPanel";
 import ReportsPanel from "@/components/dashboard/ReportsPanel";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { useKavach } from "@/context/KavachContext";
 
 type Tab = "overview" | "vision" | "network" | "citizen" | "geo" | "reports";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [systemLoad, setSystemLoad] = useState(34);
-  const [activeAlerts, setActiveAlerts] = useState(14);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [operationalFeeds, setOperationalFeeds] = useState([
-    { id: 1, time: "12:44", message: "Vision scan validated ₹500 note signature", type: "SUCCESS" },
-    { id: 2, time: "12:35", message: "Network scan blocked mule cashout in Mewat", type: "ALERT" },
-    { id: 3, time: "12:28", message: "Citizen filter blocked VoIP call clone voice", type: "ALERT" },
-    { id: 4, time: "12:15", message: "Phishing registry block: india-post-tracking-service.com", type: "SUCCESS" },
-    { id: 5, time: "12:02", message: "Audit log REP-001 successfully compiled for IFSO", type: "SUCCESS" },
-  ]);
+  const {
+    operationalFeeds,
+    recentAlerts,
+    stats,
+    systemStress,
+    toggleSystemStress,
+    resetDatabase,
+    surgeThreatFeed,
+  } = useKavach();
 
   // Chart data for Overview (30 Days trend)
   const threatVolumeData = [
@@ -68,43 +70,12 @@ export default function Dashboard() {
     { date: "Jun 25", threats: 118 }
   ];
 
-  // Recent alerts table rows
-  const recentAlerts = [
-    { time: "12:44", type: "Intaglio Counterfeit Scan", score: "99% Risk", status: "VERIFIED" },
-    { time: "12:35", type: "SBI Mule A/C Transaction", score: "96% Risk", status: "BLOCKED" },
-    { time: "12:28", type: "Synthetic Voice Spoof VoIP", score: "91% Risk", status: "INTERCEPTING" },
-    { time: "12:15", type: "Post Phishing Redirect", score: "74% Risk", status: "BLOCKED" },
-    { time: "11:58", type: "Electricity Bill Spam Link", score: "65% Risk", status: "ALERTED" }
-  ];
-
-  // Simulating load fluctuations and scrolling terminal feeds
+  // Simulating load fluctuations
   useEffect(() => {
-    const messages = [
-      { message: "Vision scanner processed banknote #3CD572", type: "SUCCESS" },
-      { message: "Geo scanner mapped fraud outposts in Jamtara", type: "SUCCESS" },
-      { message: "Citizen scanner blocked SMS customs phishing link", type: "ALERT" },
-      { message: "Network scanner flagged 14 connected SIM trunks", type: "ALERT" },
-      { message: "Synchronized active coordinate logs with taskforce", type: "SUCCESS" },
-      { message: "USDT Escrow wallet flagged under P2P audit", type: "ALERT" },
-    ];
-
     const interval = setInterval(() => {
       setSystemLoad((prev) => {
         const delta = Math.floor(Math.random() * 9) - 4;
         return Math.max(20, Math.min(prev + delta, 90));
-      });
-      setActiveAlerts((prev) => {
-        const delta = Math.random() > 0.75 ? 1 : Math.random() > 0.75 ? -1 : 0;
-        return Math.max(8, prev + delta);
-      });
-      setOperationalFeeds((prev) => {
-        const randomMsg = messages[Math.floor(Math.random() * messages.length)];
-        const now = new Date();
-        const timeStr = now.toTimeString().split(" ")[0].substring(0, 5);
-        return [
-          { id: Date.now(), time: timeStr, ...randomMsg },
-          ...prev.slice(0, 4),
-        ];
       });
     }, 4500);
 
@@ -273,6 +244,27 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {/* Warning banner for system stress simulation */}
+      <AnimatePresence>
+        {systemStress && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="bg-red-955/80 border-b border-red-900/40 text-red-400 py-3 px-6 text-xs font-mono text-center font-bold flex items-center justify-center gap-3.5"
+          >
+            <AlertTriangle className="w-4.5 h-4.5 animate-pulse text-red-500 shrink-0" />
+            <span>WARNING: NETWORK DEGRADATION SIMULATION ACTIVE. FORCING 1.5S LATENCY & PACKET RETRIES ON ALL PORTS (STRESS INDEX: 92%).</span>
+            <button 
+              onClick={toggleSystemStress}
+              className="underline hover:text-white font-extrabold cursor-pointer ml-3 bg-transparent border-none"
+            >
+              Disable Simulation
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* DASHBOARD BODY */}
       <div className="flex-1 flex flex-col md:flex-row h-full">
         {/* SIDEBAR NAVIGATION */}
@@ -306,12 +298,14 @@ export default function Dashboard() {
 
           <div className="mt-auto border-t border-zinc-900 pt-6 pl-2 flex flex-col gap-4 font-sans text-sm">
             <div className="flex justify-between items-center text-zinc-500 font-bold">
-              <span>Active Alerts</span>
-              <span className="text-violet-405 font-extrabold">{activeAlerts}</span>
+              <span>Active Threats</span>
+              <span className="text-violet-405 font-extrabold">{stats.activeThreats}</span>
             </div>
             <div className="flex justify-between items-center text-zinc-500 font-bold">
               <span>Connection Layer</span>
-              <span className="text-emerald-400 font-extrabold">SECURE</span>
+              <span className={`font-extrabold ${systemStress ? "text-red-500 animate-pulse" : "text-emerald-400"}`}>
+                {systemStress ? "DEGRADED" : "SECURE"}
+              </span>
             </div>
             <Link href="/" className="mt-6 flex items-center gap-2.5 text-zinc-450 hover:text-zinc-205 cursor-pointer transition-colors font-semibold">
               <LogOut className="w-4.5 h-4.5" />
@@ -339,7 +333,7 @@ export default function Dashboard() {
                     <Card variant="violet" className="flex flex-col justify-between h-36">
                       <div>
                         <span className="text-xs font-sans font-bold text-zinc-500 uppercase tracking-wider">Active Threats</span>
-                        <h4 className="text-3xl font-extrabold text-white mt-2">142 cases</h4>
+                        <h4 className="text-3xl font-extrabold text-white mt-2">{stats.activeThreats} cases</h4>
                       </div>
                       <span className="text-sm text-red-400 flex items-center gap-1.5 border-t border-zinc-800/80 pt-3 font-bold">
                         9 Critical clusters prioritized
@@ -349,7 +343,7 @@ export default function Dashboard() {
                     <Card variant="zinc" className="flex flex-col justify-between h-36">
                       <div>
                         <span className="text-xs font-sans font-bold text-zinc-500 uppercase tracking-wider">Fraud Reports Today</span>
-                        <h4 className="text-3xl font-extrabold text-violet-400 mt-2">1,482 Logs</h4>
+                        <h4 className="text-3xl font-extrabold text-violet-400 mt-2">{stats.reportsToday.toLocaleString()} Logs</h4>
                       </div>
                       <span className="text-sm text-emerald-400 border-t border-zinc-800/80 pt-3 font-bold">
                         +14% in last 24 hours
@@ -359,7 +353,7 @@ export default function Dashboard() {
                     <Card variant="violet" className="flex flex-col justify-between h-36">
                       <div>
                         <span className="text-xs font-sans font-bold text-zinc-500 uppercase tracking-wider">Counterfeit Reports</span>
-                        <h4 className="text-3xl font-extrabold text-amber-505 mt-2">384 Notes</h4>
+                        <h4 className="text-3xl font-extrabold text-amber-505 mt-2">{stats.counterfeitReports} Notes</h4>
                       </div>
                       <span className="text-sm text-zinc-400 border-t border-zinc-800/80 pt-3 font-medium">
                         blacklisted sequence #3CD572
@@ -369,13 +363,57 @@ export default function Dashboard() {
                     <Card variant="zinc" className="flex flex-col justify-between h-36">
                       <div>
                         <span className="text-xs font-sans font-bold text-zinc-500 uppercase tracking-wider">High-Risk Clusters</span>
-                        <h4 className="text-3xl font-extrabold text-emerald-400 mt-2">4 Regions</h4>
+                        <h4 className="text-3xl font-extrabold text-emerald-400 mt-2">{stats.riskClusters} Regions</h4>
                       </div>
                       <span className="text-sm text-zinc-400 border-t border-zinc-800/80 pt-3 font-medium">
                         Mewat, Jamtara, Delhi, Kolkata
                       </span>
                     </Card>
                   </div>
+
+                  {/* Hackathon Demo Control Center */}
+                  <Card variant="zinc" className="p-6 border border-zinc-800/80 bg-zinc-950/20 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-3.5 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                        systemStress ? "bg-red-955/30 border-red-500/20 text-red-400" : "bg-violet-955/30 border-violet-800/30 text-violet-405"
+                      }`}>
+                        <Cpu className={`w-6 h-6 ${systemStress ? "animate-pulse" : ""}`} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-extrabold text-zinc-200 uppercase tracking-wider font-sans">
+                          Hackathon Demo Control Hub
+                        </h4>
+                        <p className="text-xs text-zinc-500 mt-1 leading-normal font-sans">
+                          Trigger real-time telemetry simulation, system stress faults, or reset environment telemetry.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        onClick={surgeThreatFeed}
+                        className="px-4 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-all shadow-[0_4px_12px_rgba(139,92,246,0.2)] hover:shadow-[0_4px_16px_rgba(139,92,246,0.3)] cursor-pointer"
+                      >
+                        Surge Threat Feed
+                      </button>
+                      <button
+                        onClick={toggleSystemStress}
+                        className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                          systemStress
+                            ? "bg-red-955/40 border-red-500/40 text-red-400 hover:bg-red-955/60"
+                            : "bg-zinc-950 border-zinc-800 text-zinc-350 hover:border-zinc-700 hover:bg-zinc-900"
+                        }`}
+                      >
+                        {systemStress ? "Disable System Stress" : "Enable System Stress"}
+                      </button>
+                      <button
+                        onClick={resetDatabase}
+                        className="px-4 py-2.5 rounded-lg border border-zinc-800 bg-zinc-950 hover:bg-zinc-900 text-zinc-400 hover:text-zinc-250 text-xs font-bold transition-all cursor-pointer"
+                      >
+                        Reset Database
+                      </button>
+                    </div>
+                  </Card>
 
                   {/* Main Overview Graphics */}
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -95,3 +95,22 @@ body {
   background: rgba(139, 92, 246, 0.4);
 }
 
+/* Leaflet Dark Theme Command Center Popups */
+.leaflet-popup-content-wrapper {
+  background: #09090b !important;
+  border: 1px solid rgba(63, 63, 70, 0.6) !important;
+  color: #f4f4f5 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6) !important;
+}
+
+.leaflet-popup-tip {
+  background: #09090b !important;
+  border-left: 1px solid rgba(63, 63, 70, 0.6) !important;
+  border-bottom: 1px solid rgba(63, 63, 70, 0.6) !important;
+}
+
+.leaflet-popup-content {
+  margin: 8px 12px !important;
+}
+

@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldAlert, ShieldCheck, HelpCircle, PhoneCall, Link2, MessageSquare, AlertTriangle } from "lucide-react";
+import { ShieldAlert, ShieldCheck, HelpCircle, PhoneCall, Link2, MessageSquare, AlertTriangle, Sparkles } from "lucide-react";
 import { Card } from "../ui/Card";
+import { useKavach } from "@/context/KavachContext";
 
 interface ThreatIndicator {
   name: string;
@@ -20,6 +22,7 @@ interface ThreatAnalysis {
 }
 
 export default function CitizenPanel() {
+  const { addAlert, systemStress } = useKavach();
   const [activeTab, setActiveTab] = useState<"link" | "call" | "message">("call");
   const [inputText, setInputText] = useState("");
   const [scanning, setScanning] = useState(false);
@@ -119,6 +122,7 @@ export default function CitizenPanel() {
     setScanning(true);
     setAnalysisResult(null);
 
+    const delay = systemStress ? 3500 : 1500;
     setTimeout(() => {
       let matchedAnalysis: ThreatAnalysis | null = null;
       Object.values(presets).forEach((tabPresets) => {
@@ -144,7 +148,20 @@ export default function CitizenPanel() {
 
       setAnalysisResult(matchedAnalysis);
       setScanning(false);
-    }, 1800);
+
+      if (matchedAnalysis) {
+        const severity = matchedAnalysis.verdict === "SAFE" ? "SUCCESS" : "ALERT";
+        addAlert(
+          `Citizen filter flagged ${activeTab} assessment as ${matchedAnalysis.verdict} (${matchedAnalysis.score}% Risk)`,
+          severity,
+          {
+            type: `Citizen ${activeTab.toUpperCase()} Check`,
+            score: `${matchedAnalysis.score}% Risk`,
+            status: matchedAnalysis.verdict === "SAFE" ? "VERIFIED" : "BLOCKED"
+          }
+        );
+      }
+    }, delay);
   };
 
   return (
@@ -157,7 +174,9 @@ export default function CitizenPanel() {
               <ShieldAlert className="w-5.5 h-5.5 text-violet-400" />
               <span className="font-bold text-base text-zinc-100">Citizen Fraud Scanner</span>
             </div>
-            <span className="w-2.5 h-2.5 rounded-full bg-violet-500" />
+            <Link href="/citizen" className="text-xs text-fuchsia-400 hover:text-fuchsia-300 font-bold flex items-center gap-1 hover:underline cursor-pointer">
+              <Sparkles className="w-3.5 h-3.5" /> Launch Portal
+            </Link>
           </div>
 
           {/* Icon Tabs */}
