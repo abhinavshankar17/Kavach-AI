@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Globe, Clock, RefreshCw, Server, Sparkles } from "lucide-react";
 import { Card } from "../ui/Card";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 interface Hotspot {
   id: string;
@@ -14,7 +16,7 @@ interface Hotspot {
   threatLevel: "CRITICAL" | "HIGH" | "MEDIUM";
   primaryThreat: string;
   policeCoop: string;
-  coords: { x: number; y: number };
+  coords: [number, number];
 }
 
 interface Incident {
@@ -26,8 +28,52 @@ interface Incident {
   status: "BLOCKED" | "INTERCEPTING" | "ALERTED";
 }
 
+const initialHotspots: Hotspot[] = [
+  {
+    id: "mewat",
+    name: "Mewat Region",
+    state: "Haryana / Rajasthan Border",
+    activeComplaints: 412,
+    threatLevel: "CRITICAL",
+    primaryThreat: "VoIP Spoofing & Threat Calls",
+    policeCoop: "Nuh Cyber Cell Liaison (Active)",
+    coords: [27.9152, 77.0181],
+  },
+  {
+    id: "jamtara",
+    name: "Jamtara Hub",
+    state: "Jharkhand",
+    activeComplaints: 289,
+    threatLevel: "HIGH",
+    primaryThreat: "KYC Phishing Links",
+    policeCoop: "Jharkhand Cyber Taskforce (Integrated)",
+    coords: [23.9620, 86.8028],
+  },
+  {
+    id: "kolkata",
+    name: "Kolkata Call Ring",
+    state: "West Bengal",
+    activeComplaints: 341,
+    threatLevel: "HIGH",
+    primaryThreat: "Courier & Customs Impersonation",
+    policeCoop: "Bidhannagar Police Cyber Wing (Active)",
+    coords: [22.5726, 88.3639],
+  },
+  {
+    id: "delhi",
+    name: "NCR Gateway Network",
+    state: "Delhi NCR",
+    activeComplaints: 521,
+    threatLevel: "CRITICAL",
+    primaryThreat: "Mule Bank Aggregators & IB Gateways",
+    policeCoop: "Delhi Police IFSO (Direct Link)",
+    coords: [28.6139, 77.2090],
+  },
+];
+
 export default function GeoPanel() {
-  const [selectedHotspot, setSelectedHotspot] = useState<Hotspot | null>(null);
+  const [selectedHotspot, setSelectedHotspot] = useState<Hotspot | null>(initialHotspots[0]);
+  const [hotspotsList, setHotspotsList] = useState<Hotspot[]>(initialHotspots);
   const [incidents, setIncidents] = useState<Incident[]>([
     { id: "INC-9281", time: "10s ago", location: "Jamtara, JH", type: "KYC Phishing SMS", volume: "₹1.4L", status: "BLOCKED" },
     { id: "INC-9282", time: "1m ago", location: "Nuh, HR", type: "Digital Arrest Call", volume: "₹18.0L", status: "INTERCEPTING" },
@@ -36,48 +82,154 @@ export default function GeoPanel() {
     { id: "INC-9285", time: "7m ago", location: "Ahmedabad, GJ", type: "Courier Customs Scam", volume: "₹8.0L", status: "BLOCKED" },
   ]);
 
-  const hotspots: Hotspot[] = [
-    {
-      id: "mewat",
-      name: "Mewat Region",
-      state: "Haryana / Rajasthan Border",
-      activeComplaints: 412,
-      threatLevel: "CRITICAL",
-      primaryThreat: "VoIP Spoofing & Threat Calls",
-      policeCoop: "Nuh Cyber Cell Liaison (Active)",
-      coords: { x: 140, y: 110 },
-    },
-    {
-      id: "jamtara",
-      name: "Jamtara Hub",
-      state: "Jharkhand",
-      activeComplaints: 289,
-      threatLevel: "HIGH",
-      primaryThreat: "KYC Phishing Links",
-      policeCoop: "Jharkhand Cyber Taskforce (Integrated)",
-      coords: { x: 260, y: 150 },
-    },
-    {
-      id: "kolkata",
-      name: "Kolkata Call Ring",
-      state: "West Bengal",
-      activeComplaints: 341,
-      threatLevel: "HIGH",
-      primaryThreat: "Courier & Customs Impersonation",
-      policeCoop: "Bidhannagar Police Cyber Wing (Active)",
-      coords: { x: 275, y: 175 },
-    },
-    {
-      id: "delhi",
-      name: "NCR Gateway Network",
-      state: "Delhi NCR",
-      activeComplaints: 521,
-      threatLevel: "CRITICAL",
-      primaryThreat: "Mule Bank Aggregators & IB Gateways",
-      policeCoop: "Delhi Police IFSO (Direct Link)",
-      coords: { x: 150, y: 95 },
-    },
-  ];
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markersRef = useRef<{ [key: string]: L.Marker }>({});
+
+  // 1. Get browser geolocation and reverse geocode
+  useEffect(() => {
+    if (typeof window !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`, {
+            headers: {
+              "User-Agent": "KavachAI-HackathonDemo/1.0"
+            }
+          })
+            .then((res) => {
+              if (!res.ok) throw new Error("Reverse geocoding error");
+              return res.json();
+            })
+            .then((data) => {
+              const cityName = data.address?.city || data.address?.town || data.address?.village || "Local Outpost";
+              const stateName = data.address?.state || "Your Region";
+              
+              const userHotspot: Hotspot = {
+                id: "user-node",
+                name: `${cityName} Outpost`,
+                state: stateName,
+                activeComplaints: 5,
+                threatLevel: "MEDIUM",
+                primaryThreat: "Scan logs clear (Active Outpost)",
+                policeCoop: "Local Cybercell Link Active",
+                coords: [latitude, longitude],
+              };
+              
+              setHotspotsList((prev) => {
+                if (prev.some(h => h.id === "user-node")) return prev;
+                return [userHotspot, ...prev];
+              });
+              setSelectedHotspot(userHotspot);
+            })
+            .catch(() => {
+              const userHotspot: Hotspot = {
+                id: "user-node",
+                name: "Local Outpost",
+                state: "Your Region",
+                activeComplaints: 5,
+                threatLevel: "MEDIUM",
+                primaryThreat: "Scan logs clear (Active Outpost)",
+                policeCoop: "Local Cybercell Link Active",
+                coords: [latitude, longitude],
+              };
+              setHotspotsList((prev) => {
+                if (prev.some(h => h.id === "user-node")) return prev;
+                return [userHotspot, ...prev];
+              });
+              setSelectedHotspot(userHotspot);
+            });
+        },
+        (error) => {
+          console.warn("Geolocation in GeoPanel failed:", error);
+        }
+      );
+    }
+  }, []);
+
+  // 2. Initialize Leaflet Map
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+
+    // Dark map centered on India
+    const map = L.map(mapContainerRef.current, {
+      center: [21.7679, 78.8718],
+      zoom: 4,
+      zoomControl: false,
+      attributionControl: false,
+    });
+
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      maxZoom: 19,
+    }).addTo(map);
+
+    mapRef.current = map;
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, []);
+
+  // 3. Render Markers & Keep Synced
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    // Clear existing markers
+    Object.values(markersRef.current).forEach((marker) => marker.remove());
+    markersRef.current = {};
+
+    hotspotsList.forEach((hs) => {
+      const isSelected = selectedHotspot?.id === hs.id;
+      const isCritical = hs.threatLevel === "CRITICAL";
+      const isHigh = hs.threatLevel === "HIGH";
+      
+      const color = isCritical ? "#ef4444" : isHigh ? "#f59e0b" : "#a78bfa";
+      const ringColor = isCritical ? "rgba(239, 68, 68, 0.4)" : isHigh ? "rgba(245, 158, 11, 0.4)" : "rgba(167, 139, 250, 0.4)";
+      
+      const size = isSelected ? 24 : 16;
+      const offset = size / 2;
+      const coreSize = isSelected ? 10 : 6;
+      const coreOffset = (size - coreSize) / 2;
+
+      const html = `
+        <div style="position: relative; width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center;">
+          <div class="ping-ring-class" style="position: absolute; width: ${size}px; height: ${size}px; border-radius: 50%; background-color: ${ringColor}; border: 1px solid ${color}; top: 0; left: 0;"></div>
+          <div style="position: absolute; width: ${coreSize}px; height: ${coreSize}px; border-radius: 50%; background-color: ${color}; border: 1.5px solid #09090b; top: ${coreOffset}px; left: ${coreOffset}px;"></div>
+        </div>
+      `;
+
+      const customIcon = L.divIcon({
+        html,
+        className: "custom-dashboard-marker",
+        iconSize: [size, size],
+        iconAnchor: [offset, offset]
+      });
+
+      const marker = L.marker(hs.coords, { icon: customIcon }).addTo(map);
+
+      marker.on("click", () => {
+        setSelectedHotspot(hs);
+        const targetZoom = hs.id === "user-node" ? 9 : 5;
+        map.setView(hs.coords, targetZoom, { animate: true });
+      });
+
+      markersRef.current[hs.id] = marker;
+    });
+  }, [hotspotsList, selectedHotspot]);
+
+  // 4. Center map when selectedHotspot changes externally
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !selectedHotspot) return;
+
+    const targetZoom = selectedHotspot.id === "user-node" ? 9 : 5;
+    map.setView(selectedHotspot.coords, targetZoom, { animate: true });
+  }, [selectedHotspot]);
 
   // Simulate streaming incidents
   useEffect(() => {
@@ -148,7 +300,7 @@ export default function GeoPanel() {
           <div className="flex flex-col gap-3.5 mt-2">
             <label className="text-xs text-zinc-550 font-bold uppercase tracking-wider">Active Hotspots</label>
             <div className="flex flex-col gap-3">
-              {hotspots.map((hs) => (
+              {hotspotsList.map((hs) => (
                 <button
                   key={hs.id}
                   onClick={() => setSelectedHotspot(hs)}
@@ -165,8 +317,10 @@ export default function GeoPanel() {
                   <span
                     className={`text-xs font-bold px-2.5 py-1 rounded border ${
                       hs.threatLevel === "CRITICAL"
-                        ? "text-red-400 bg-red-950/40 border-red-900/30"
-                        : "text-amber-400 bg-amber-950/40 border-amber-900/30"
+                        ? "text-red-400 bg-red-955/20 border-red-900/25"
+                        : hs.threatLevel === "HIGH"
+                        ? "text-amber-400 bg-amber-955/20 border-amber-900/25"
+                        : "text-violet-400 bg-violet-955/20 border-violet-900/25"
                     }`}
                   >
                     {hs.threatLevel}
@@ -193,15 +347,15 @@ export default function GeoPanel() {
               </div>
               <div className="flex flex-col gap-3 mt-1">
                 <div className="flex justify-between border-b border-zinc-900/60 pb-2">
-                  <span className="text-xs text-zinc-500 font-bold uppercase">Primary Vector</span>
+                  <span className="text-xs text-zinc-550 font-bold uppercase">Primary Vector</span>
                   <span className="text-sm font-bold text-zinc-300">{selectedHotspot.primaryThreat}</span>
                 </div>
                 <div className="flex justify-between border-b border-zinc-900/60 pb-2">
-                  <span className="text-xs text-zinc-500 font-bold uppercase">Active Cases</span>
+                  <span className="text-xs text-zinc-550 font-bold uppercase">Active Cases</span>
                   <span className="text-sm font-bold text-violet-400">{selectedHotspot.activeComplaints} records</span>
                 </div>
                 <div className="flex justify-between border-b border-zinc-900/60 pb-2">
-                  <span className="text-xs text-zinc-500 font-bold uppercase">Jurisdiction Outpost</span>
+                  <span className="text-xs text-zinc-550 font-bold uppercase">Jurisdiction Outpost</span>
                   <span className="text-sm font-bold text-emerald-400">{selectedHotspot.policeCoop}</span>
                 </div>
               </div>
@@ -231,59 +385,22 @@ export default function GeoPanel() {
           </div>
 
           <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
-            {/* The SVG Map of India (stylized outline) */}
-            <div className="md:col-span-7 bg-zinc-950/40 border border-zinc-900 rounded-xl p-3 flex items-center justify-center relative overflow-hidden min-h-[260px]">
+            {/* Real Interactive Leaflet Map showing nearby area */}
+            <div className="md:col-span-7 bg-zinc-950/40 border border-zinc-900 rounded-xl overflow-hidden relative min-h-[280px] z-10">
+              <div ref={mapContainerRef} className="w-full h-full min-h-[280px]" />
               
-              {/* Scope scale lines */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-[180px] h-[180px] rounded-full border border-zinc-900/40" />
-                <div className="w-[280px] h-[280px] rounded-full border border-zinc-900/20 absolute" />
+              {/* Dynamic Coordinate details Overlay */}
+              <div className="absolute top-3 left-3 z-[400] pointer-events-none flex flex-col gap-1 font-mono text-[9px] text-zinc-550 bg-zinc-950/90 px-2 py-1.5 rounded border border-zinc-900/60 backdrop-blur">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.2 h-1.2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-zinc-350 font-bold">GRID: ONLINE</span>
+                </div>
+                <div>
+                  {selectedHotspot
+                    ? `${selectedHotspot.coords[0].toFixed(3)}° N, ${selectedHotspot.coords[1].toFixed(3)}° E`
+                    : "21.767° N, 78.871° E"}
+                </div>
               </div>
-
-              {/* Stylized SVG Map of India */}
-              <svg viewBox="0 0 400 400" className="w-full h-full max-w-[320px] aspect-square relative z-10 opacity-70">
-                {/* Outline of India */}
-                <path
-                  d="M 170 30 L 175 40 L 180 50 L 170 70 L 160 85 L 140 90 L 130 110 L 115 130 L 110 160 L 120 180 L 135 190 L 140 210 L 155 240 L 180 280 L 195 320 L 202 360 L 204 360 L 210 320 L 222 280 L 240 250 L 245 230 L 255 220 L 275 220 L 285 200 L 290 180 L 270 170 L 250 155 L 240 145 L 255 135 L 275 135 L 290 145 L 305 130 L 285 110 L 260 110 L 240 100 L 225 80 L 210 80 L 195 70 L 190 50 L 185 30 Z"
-                  fill="none"
-                  stroke="rgba(167, 139, 250, 0.15)"
-                  strokeWidth="1.2"
-                />
-
-                {/* Hotspot Beacons */}
-                {hotspots.map((hs) => {
-                  const isSelected = selectedHotspot?.id === hs.id;
-                  const isCritical = hs.threatLevel === "CRITICAL";
-
-                  return (
-                    <g
-                      key={hs.id}
-                      className="cursor-pointer"
-                      onClick={() => setSelectedHotspot(hs)}
-                    >
-                      {/* Pulse circle */}
-                      <circle
-                        cx={hs.coords.x}
-                        cy={hs.coords.y}
-                        r={isSelected ? 12 : 6}
-                        fill="none"
-                        stroke={isCritical ? "#ef4444" : "#f59e0b"}
-                        strokeWidth={0.8}
-                        className="animate-ping"
-                      />
-                      {/* Anchor Dot */}
-                      <circle
-                        cx={hs.coords.x}
-                        cy={hs.coords.y}
-                        r={isSelected ? 4 : 3}
-                        fill={isCritical ? "#ef4444" : "#f59e0b"}
-                        stroke="#ffffff"
-                        strokeWidth={isSelected ? 1 : 0}
-                      />
-                    </g>
-                  );
-                })}
-              </svg>
             </div>
 
             {/* Live streaming Feed */}
@@ -292,7 +409,7 @@ export default function GeoPanel() {
                 <Server className="w-5 h-5 text-violet-400 animate-pulse" />
                 <span className="text-sm font-bold">Live Complaint Stream</span>
               </div>
-              <div className="flex-1 flex flex-col gap-3 overflow-y-auto max-h-[240px] pr-1">
+              <div className="flex-1 flex flex-col gap-3 overflow-y-auto max-h-[240px] pr-1 font-sans">
                 {incidents.map((inc) => (
                   <div key={inc.id} className="p-3.5 border border-zinc-850 bg-zinc-950/50 rounded-xl flex flex-col gap-2">
                     <div className="flex justify-between items-center text-xs">
@@ -303,7 +420,7 @@ export default function GeoPanel() {
                       <span>Location: {inc.location}</span>
                       <span>Value: {inc.volume}</span>
                     </div>
-                    <div className="flex justify-between items-center mt-1 border-t border-zinc-800/60 pt-2">
+                    <div className="flex justify-between items-center mt-1 border-t border-zinc-800/60 pt-2 font-sans">
                       <span className="text-xs text-zinc-350 font-semibold truncate max-w-[125px]">{inc.type}</span>
                       <span
                         className={`font-sans font-bold px-2 py-0.5 rounded text-[10px] ${

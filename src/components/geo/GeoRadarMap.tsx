@@ -141,7 +141,8 @@ export default function GeoRadarMap({ cities, selectedCity, onSelectCity }: GeoR
 
       marker.on("click", () => {
         onSelectCity(city);
-        map.setView(city.coords, 6, { animate: true });
+        const targetZoom = city.id === "user-node" ? 9 : 6;
+        map.setView(city.coords, targetZoom, { animate: true });
       });
 
       markersRef.current[city.id] = marker;
@@ -156,7 +157,8 @@ export default function GeoRadarMap({ cities, selectedCity, onSelectCity }: GeoR
     const marker = markersRef.current[selectedCity.id];
     if (marker) {
       marker.openPopup();
-      map.setView(selectedCity.coords, 6, { animate: true });
+      const targetZoom = selectedCity.id === "user-node" ? 9 : 6;
+      map.setView(selectedCity.coords, targetZoom, { animate: true });
     }
   }, [selectedCity]);
 
@@ -171,8 +173,13 @@ export default function GeoRadarMap({ cities, selectedCity, onSelectCity }: GeoR
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-zinc-350 font-bold">GRID SYNC: ONLINE</span>
         </div>
-        <div>COORDS: 21.7679° N, 78.8718° E</div>
-        <div>RADAR RANGE: NATIONAL</div>
+        <div>
+          COORDS:{" "}
+          {selectedCity
+            ? `${selectedCity.coords[0].toFixed(4)}° N, ${selectedCity.coords[1].toFixed(4)}° E`
+            : "21.7679° N, 78.8718° E"}
+        </div>
+        <div>RADAR RANGE: {selectedCity?.id === "user-node" ? "LOCAL OUTPOST" : "NATIONAL"}</div>
       </div>
 
       {/* Map Legend */}
@@ -191,7 +198,7 @@ export default function GeoRadarMap({ cities, selectedCity, onSelectCity }: GeoR
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-violet-400 shadow-[0_0_6px_#a78bfa]" />
-          <span>Low</span>
+          <span>Low/User</span>
         </div>
       </div>
     </div>

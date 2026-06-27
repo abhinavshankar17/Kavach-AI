@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
@@ -31,81 +31,146 @@ const GeoRadarMap = dynamic(() => import("@/components/geo/GeoRadarMap"), {
   ),
 });
 
-export default function GeoPortal() {
-  const cities: CityData[] = [
-    {
-      id: "delhi",
-      name: "Delhi NCR Gateway",
-      state: "National Capital Region",
-      activeComplaints: 521,
-      threatLevel: "CRITICAL",
-      primaryThreat: "Mule Bank Aggregators & VoIP Spoofing",
-      policeCoop: "Delhi Police IFSO (Direct Link)",
-      coords: [28.6139, 77.2090],
-    },
-    {
-      id: "mumbai",
-      name: "Mumbai Financial Node",
-      state: "Maharashtra",
-      activeComplaints: 482,
-      threatLevel: "CRITICAL",
-      primaryThreat: "Stock Market Spoofs & KYC Phishing",
-      policeCoop: "Maharashtra Cyber Wing (Integrated)",
-      coords: [19.0760, 72.8777],
-    },
-    {
-      id: "ahmedabad",
-      name: "Ahmedabad Trade District",
-      state: "Gujarat",
-      activeComplaints: 310,
-      threatLevel: "HIGH",
-      primaryThreat: "P2P Escrow Fraud & Customs Scams",
-      policeCoop: "Gujarat Cyber Cell Liaison (Active)",
-      coords: [23.0225, 72.5714],
-    },
-    {
-      id: "surat",
-      name: "Surat Commercial Ring",
-      state: "Gujarat",
-      activeComplaints: 220,
-      threatLevel: "MEDIUM",
-      primaryThreat: "GST Invoice Ring & Part-Time Job Scams",
-      policeCoop: "Surat City Cyber Liaison (Active)",
-      coords: [21.1702, 72.8311],
-    },
-    {
-      id: "vadodara",
-      name: "Vadodara Transit Node",
-      state: "Gujarat",
-      activeComplaints: 142,
-      threatLevel: "LOW",
-      primaryThreat: "Fake Courier Tracking Links",
-      policeCoop: "Vadodara Rural Taskforce (Active)",
-      coords: [22.3072, 73.1812],
-    },
-    {
-      id: "bengaluru",
-      name: "Bengaluru Tech Corridor",
-      state: "Karnataka",
-      activeComplaints: 384,
-      threatLevel: "HIGH",
-      primaryThreat: "Tech Support Impersonation & AI Voice Clones",
-      policeCoop: "Karnataka CID Cyber Crime (Direct Link)",
-      coords: [12.9716, 77.5946],
-    },
-    {
-      id: "chennai",
-      name: "Chennai Telecom Exchange",
-      state: "Tamil Nadu",
-      activeComplaints: 260,
-      threatLevel: "MEDIUM",
-      primaryThreat: "Synthetic Identity Registry Scams",
-      policeCoop: "Tamil Nadu Cyber Taskforce (Integrated)",
-      coords: [13.0827, 80.2707],
-    },
-  ];
+const initialCities: CityData[] = [
+  {
+    id: "delhi",
+    name: "Delhi NCR Gateway",
+    state: "National Capital Region",
+    activeComplaints: 521,
+    threatLevel: "CRITICAL",
+    primaryThreat: "Mule Bank Aggregators & VoIP Spoofing",
+    policeCoop: "Delhi Police IFSO (Direct Link)",
+    coords: [28.6139, 77.2090],
+  },
+  {
+    id: "mumbai",
+    name: "Mumbai Financial Node",
+    state: "Maharashtra",
+    activeComplaints: 482,
+    threatLevel: "CRITICAL",
+    primaryThreat: "Stock Market Spoofs & KYC Phishing",
+    policeCoop: "Maharashtra Cyber Wing (Integrated)",
+    coords: [19.0760, 72.8777],
+  },
+  {
+    id: "ahmedabad",
+    name: "Ahmedabad Trade District",
+    state: "Gujarat",
+    activeComplaints: 310,
+    threatLevel: "HIGH",
+    primaryThreat: "P2P Escrow Fraud & Customs Scams",
+    policeCoop: "Gujarat Cyber Cell Liaison (Active)",
+    coords: [23.0225, 72.5714],
+  },
+  {
+    id: "surat",
+    name: "Surat Commercial Ring",
+    state: "Gujarat",
+    activeComplaints: 220,
+    threatLevel: "MEDIUM",
+    primaryThreat: "GST Invoice Ring & Part-Time Job Scams",
+    policeCoop: "Surat City Cyber Liaison (Active)",
+    coords: [21.1702, 72.8311],
+  },
+  {
+    id: "vadodara",
+    name: "Vadodara Transit Node",
+    state: "Gujarat",
+    activeComplaints: 142,
+    threatLevel: "LOW",
+    primaryThreat: "Fake Courier Tracking Links",
+    policeCoop: "Vadodara Rural Taskforce (Active)",
+    coords: [22.3072, 73.1812],
+  },
+  {
+    id: "bengaluru",
+    name: "Bengaluru Tech Corridor",
+    state: "Karnataka",
+    activeComplaints: 384,
+    threatLevel: "HIGH",
+    primaryThreat: "Tech Support Impersonation & AI Voice Clones",
+    policeCoop: "Karnataka CID Cyber Crime (Direct Link)",
+    coords: [12.9716, 77.5946],
+  },
+  {
+    id: "chennai",
+    name: "Chennai Telecom Exchange",
+    state: "Tamil Nadu",
+    activeComplaints: 260,
+    threatLevel: "MEDIUM",
+    primaryThreat: "Synthetic Identity Registry Scams",
+    policeCoop: "Tamil Nadu Cyber Taskforce (Integrated)",
+    coords: [13.0827, 80.2707],
+  },
+];
 
-  const [selectedCity, setSelectedCity] = useState<CityData | null>(cities[0]);
+export default function GeoPortal() {
+  const [citiesList, setCitiesList] = useState<CityData[]>(initialCities);
+  const [selectedCity, setSelectedCity] = useState<CityData | null>(initialCities[0]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          
+          // Reverse geocoding to find city and state name using Nominatim OpenStreetMap (free/public)
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`, {
+            headers: {
+              "User-Agent": "KavachAI-HackathonDemo/1.0"
+            }
+          })
+            .then((res) => {
+              if (!res.ok) throw new Error("Geocoding service unavailable");
+              return res.json();
+            })
+            .then((data) => {
+              const cityName = data.address?.city || data.address?.town || data.address?.village || data.address?.suburb || "Local Node";
+              const stateName = data.address?.state || "Active Region";
+              
+              const userNode: CityData = {
+                id: "user-node",
+                name: `${cityName} Secured Outpost`,
+                state: stateName,
+                activeComplaints: 3,
+                threatLevel: "LOW",
+                primaryThreat: "Standard network traffic (Secure)",
+                policeCoop: `Local ${stateName} Cyber Cell Link Active`,
+                coords: [latitude, longitude],
+              };
+              
+              setCitiesList((prev) => {
+                if (prev.some(c => c.id === "user-node")) return prev;
+                return [userNode, ...prev];
+              });
+              setSelectedCity(userNode);
+            })
+            .catch((err) => {
+              console.warn("Reverse geocoding failed, using default user node:", err);
+              const userNode: CityData = {
+                id: "user-node",
+                name: "Local Outpost Node",
+                state: "Your Region",
+                activeComplaints: 3,
+                threatLevel: "LOW",
+                primaryThreat: "Standard network traffic (Secure)",
+                policeCoop: "Local Cybercell Link Active",
+                coords: [latitude, longitude],
+              };
+              setCitiesList((prev) => {
+                if (prev.some(c => c.id === "user-node")) return prev;
+                return [userNode, ...prev];
+              });
+              setSelectedCity(userNode);
+            });
+        },
+        (error) => {
+          console.warn("Geolocation API permission denied or failed:", error);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+  }, []);
 
   // Chart data (Geo Trend Analysis - monthly complaints)
   const monthlyTrendData = [
@@ -166,7 +231,7 @@ export default function GeoPortal() {
 
             {/* Quick selector bar of cities */}
             <div className="flex flex-wrap gap-2 py-1 overflow-x-auto pr-1">
-              {cities.map((city) => (
+              {citiesList.map((city) => (
                 <button
                   key={city.id}
                   onClick={() => setSelectedCity(city)}
@@ -184,7 +249,7 @@ export default function GeoPortal() {
             {/* Dynamic Map Component container */}
             <div className="w-full aspect-[1.6] min-h-[460px] overflow-hidden rounded-xl">
               <GeoRadarMap
-                cities={cities}
+                cities={citiesList}
                 selectedCity={selectedCity}
                 onSelectCity={setSelectedCity}
               />

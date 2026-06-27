@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield,
@@ -21,12 +22,21 @@ import {
   Search,
   FileText,
   UserCheck,
+  RefreshCw,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import VisionPanel from "@/components/dashboard/VisionPanel";
 import NetworkPanel from "@/components/dashboard/NetworkPanel";
 import CitizenPanel from "@/components/dashboard/CitizenPanel";
-import GeoPanel from "@/components/dashboard/GeoPanel";
+const GeoPanel = dynamic(() => import("@/components/dashboard/GeoPanel"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full min-h-[460px] flex flex-col items-center justify-center bg-zinc-950 border border-zinc-900 rounded-xl p-6 text-center">
+      <RefreshCw className="w-8 h-8 text-violet-500 animate-spin mb-4" />
+      <span className="text-sm text-zinc-550 uppercase tracking-widest font-mono">Calibrating Map Satellite Grid...</span>
+    </div>
+  ),
+});
 import ReportsPanel from "@/components/dashboard/ReportsPanel";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { useKavach } from "@/context/KavachContext";
